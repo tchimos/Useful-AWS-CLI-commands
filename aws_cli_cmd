@@ -1,0 +1,103 @@
+VpcId": "vpc-07d3a1788156d674f
+
+vpc creation : aws ec2 create-vpc --cidr-block 10.0.0.0/16 --tag-specification 'ResourceType=vpc,Tags=[{Key=name,Value=public_subnet}]'
+
+
+subnet 1 : 10.0.0.0/17
+
+
+tag vpc : aws ec2 create-tags --resources vpc-07d3a1788156d674f --tags Key=Name,Value=CLI-VPC
+
+create subnet : aws ec2 create-subnet --vpc-id vpc-07d3a1788156d674f --cidr-block 10.0.128.0/17 --tag-specification 'ResourceType=subnet,Tags=[{Key=name,Value=public_subnet}]'
+
+
+subnet 1 : 10.0.0.0/17
+
+subnet 2 : 10.0.128.0/17
+
+SubnetId": "subnet-03af1a49d06cce000" (private subnet)
+
+tag subnet : aws ec2 create-tags --resources subnet-03af1a49d06cce000 --tags Key=name,Value=private_subnet
+
+SubnetId": "subnet-025929ccabb8e43b9" (public subnet)
+
+internet gateway : aws ec2 create-internet-gateway --tag-specification 'ResourceType=internet-gateway,Tags=[{Key=name,Value=internet_gateway}]'
+
+gateway_id : "InternetGatewayId": "igw-0bcd0d74159c5ffaa"
+
+internet gateway ( attach to vpc, allow to give access to your resources to the internet) : 
+aws ec2 attach-internet-gateway --internet-gateway-id igw-0bcd0d74159c5ffaa --vpc-id vpc-07d3a1788156d674f
+
+allocate Elastic IP : aws ec2 allocate-address --domain vpc
+
+
+
+"AllocationId": "eipalloc-09b9aad6326a1dd20"
+
+create Nat_gateway : aws ec2 create-nat-gateway --subnet-id subnet-025929ccabb8e43b9 --allocation-id eipalloc-09b9aad6326a1dd20
+
+"NatGatewayId": "nat-0d9594d9798bb2d39"
+
+create routing table : aws ec2 create-route-table --vpc-id vpc-07d3a1788156d674f --tag-specification 'ResourceType=route-table,Tags=[{Key=name,Value=public_table}]'
+
+private table : "RouteTableId": "rtb-019ab04b00bc2633d"
+
+public table : "RouteTableId": "rtb-0b8875e001f9531b3"
+
+creating a route ( no need to tag ) : aws ec2 create-route --route-table-id rtb-0b8875e001f9531b3 --destination-cidr-block 0.0.0.0/0 --gateway-id igw-0bcd0d74159c5ffaa
+
+
+creating route nat : aws ec2 create-route --route-table-id rtb-019ab04b00bc2633d --destination-cidr-block 0.0.0.0/0 --gateway-id nat-0d9594d9798bb2d39
+
+associate route table ( public )  : aws ec2 associate-route-table --route-table-id rtb-0b8875e001f9531b3 --subnet-id subnet-025929ccabb8e43b9
+
+associate route table ( private)  : aws ec2 associate-route-table --route-table-id rtb-019ab04b00bc2633d --subnet-id subnet-03af1a49d06cce000
+
+aws ec2 create-security-group --group-name my-sg --description " my SG" --vpc-id vpc-07d3a1788156d674f
+
+"GroupId": "sg-04d579ee153f92d81"
+
+open port Sg_group : aws ec2 authorize-security-group-ingress --group-id sg-04d579ee153f92d81 --protocol tcp --port 22 --cidr 0.0.0.0/0 
+ 
+
+aws ec2 describe-security-groups \
+    --group-ids sg-04d579ee153f92d81
+
+aws ec2 run-instances \
+--image-id  ami-05fa00d4c63e32376 \
+--count 1 \
+--instance-type t2.micro \
+--key-name elb_key \
+--security-group-ids  sg-04d579ee153f92d81 \
+--subnet-id subnet-025929ccabb8e43b9 \
+--tag-specifications \
+'ResourceType=instance,Tags=[{Key=Name,Value=web1}]'
+
+instance_id : "InstanceId": "i-0f995870a612eb554"
+
+describe instance: aws ec2 describe-instances --instance-ids i-0f995870a612eb554
+
+
+aws ec2 run-instances --image-id ami-05fa00d4c63e32376 --instance-type t2.micro --count 1 --subnet-id subnet-025929ccabb8e43b9 --security-group-ids sg-04d579ee153f92d81 --associate-public-ip-address --key-name elb_key
+
+
+Connect to instance : 
+
+
+vi elb_key
+cp elb_key elb_key.pem
+ssh -i "elb_key.pem" ec2-user@54.160.102.211
+
+
+
+
+
+
+
+
+
+
+
+
+
+
